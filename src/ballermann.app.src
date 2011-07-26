@@ -7,6 +7,6 @@
                   kernel,
                   stdlib
                  ]},
-  {mod, { ballerer_app, []}},
+  {mod, { ballermann_app, []}},
   {env, []}
  ]}.
