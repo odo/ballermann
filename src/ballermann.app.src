@@ -1,0 +1,12 @@
+{application, ballermann,
+ [
+  {description, ""},
+  {vsn, "1.0.0"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { ballerer_app, []}},
+  {env, []}
+ ]}.
