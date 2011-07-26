@@ -1,7 +1,7 @@
 ballermann
 =====
 
-ballermann (German for gunman) is a tool for load balancing between Erlang processes in a round-robin fashion.
+ballermann (German for tender shepherd) is a tool for load balancing between Erlang processes in a round-robin fashion.
 
 Building
 --------
