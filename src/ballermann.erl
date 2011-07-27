@@ -9,6 +9,7 @@
 -record(state, {
 	supervisor :: sup_ref(),
 	pids :: pids(),
+	old_pids :: pids(),
 	index :: integer(),
 	calls_since_update :: integer(),
 	refresh_every_calls :: integer()
@@ -20,40 +21,28 @@ start_link(Supervisor, ServerName, RefreshEveryCall, RefreshEveryMs) ->
 	Res.
 
 pid(ServerName) ->
-gen_server:call(ServerName, pid).
+	gen_server:call(ServerName, pid).
 
 init({Supervisor, RefreshEveryCall}) ->
 	State = update_pids(#state{supervisor = Supervisor, index = 0, refresh_every_calls = RefreshEveryCall}),
 	{ok, State}.
 
 handle_call(pid, _From, StateIn) ->
-	Refresh = StateIn#state.refresh_every_calls,
-	State = 
-	case StateIn#state.calls_since_update of
-		Calls when Calls > Refresh ->
-			 update_pids(StateIn);
-		Calls when Calls =< Refresh ->
-			StateIn
-	end,
-	Index = State#state.index + 1,
-	Pids = State#state.pids,
-	IndexSave = 
-	case length(Pids) of
-		0 ->
+	State = update_pids(StateIn),
+	case State of
+		#state{pids = [], old_pids = []} ->
 			throw({error, supervisor_has_no_children});
-		N ->
-			case Index > N of
-				true ->
-					1;
-				false ->
-					Index
-			end
-	end,
-	Reply = lists:nth(IndexSave, Pids),
-	{reply, Reply, State#state{index = IndexSave, calls_since_update = (State#state.calls_since_update + 1)}}.
+		#state{pids = [], old_pids = OldPids} ->
+			[Reply | Pids] = lists:reverse(OldPids),
+			{reply, Reply, State#state{old_pids=[Reply], pids = Pids}};
+		#state{pids = [Reply | Pids], old_pids = OldPids} ->
+			{reply, Reply, State#state{old_pids=[Reply | OldPids], pids = Pids}}
+	end.
 
+update_pids(State = #state{refresh_every_calls = Refresh, calls_since_update = Calls}) when Calls > Refresh ->
+	State#state{pids = child_pids(State#state.supervisor), calls_since_update = 0};
 update_pids(State) ->
-	State#state{pids = child_pids(State#state.supervisor), calls_since_update = 0}.
+	State.
 
 handle_cast(_Msg, State) -> {noreply, State}.
 
