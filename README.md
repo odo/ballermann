@@ -1,7 +1,7 @@
-ballermann
+Ballermann
 =====
 
-ballermann (German for tender shepherd) is a tool for load balancing between Erlang processes in a round-robin fashion.
+Ballermann (German for "the one who drinks from the spring, gently") is a tool for load balancing between Erlang processes in a round-robin fashion.
 
 Building
 --------
@@ -35,8 +35,9 @@ ok
 ```
 
 If you want to get funky, you can specify when the pool is refreshed, meaning when the supervisor is asked for it's children.
-The first parameter is the number of calls before a refresh is forced (default 10000), the second the number of milliseconds a refresh takes place (default 5000).
+You do so by specifying a ratio. If the number of alive processes in the pool in relation to the original number drops below this ratio, ballermann turns to the supervisor and asks for new processes.
+The default is 0.8 (80 %).
 
 ```
-ballermann_sup:start_link(sasl_sup, sasl_pool2, 1000, 500).
+ballermann_sup:start_link(sasl_sup, sasl_pool2, 0.9).
 ```
