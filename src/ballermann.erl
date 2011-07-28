@@ -9,7 +9,7 @@
 -record(state, {
 	supervisor :: sup_ref(),
 	pids :: pids(),
-	old_pids :: pids(),
+	old_pids = [] :: pids(),
 	index :: integer(),
 	calls_since_update :: integer(),
 	refresh_every_calls :: integer()
@@ -21,13 +21,13 @@ start_link(Supervisor, ServerName, RefreshEveryCall, RefreshEveryMs) ->
 	Res.
 
 pid(ServerName) ->
-	gen_server:call(ServerName, pid).
+	gen_server:call(ServerName, {pid}).
 
 init({Supervisor, RefreshEveryCall}) ->
 	State = update_pids(#state{supervisor = Supervisor, index = 0, refresh_every_calls = RefreshEveryCall}),
 	{ok, State}.
 
-handle_call(pid, _From, StateIn) ->
+handle_call({pid}, _From, StateIn) ->
 	State = update_pids(StateIn),
 	case State of
 		#state{pids = [], old_pids = []} ->
