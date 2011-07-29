@@ -22,7 +22,7 @@ The idea is to balance between processes owned by a supervisor. In this example 
 ```
 1> application:start(sasl).
 ok
-2> ballermann_sup:start_link(sasl_sup, sasl_pool).
+2> ballermann:balance(sasl_sup, sasl_pool).
 {ok,<0.43.0>}
 3> ballermann:pid(sasl_pool).
 <0.40.0>
@@ -39,5 +39,5 @@ You do so by specifying a ratio. If the number of alive processes in the pool in
 The default is 0.8 (80 %).
 
 ```
-ballermann_sup:start_link(sasl_sup, sasl_pool2, 0.9).
+ballermann:balance(sasl_sup, sasl_pool2, 0.9).
 ```
