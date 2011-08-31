@@ -53,14 +53,9 @@ handle_info({'DOWN', _, _, Pid, _}, State = #state{supervisor = Supervisor, last
 	case too_few_pids(PidTable, PidsCountOriginal, MinAliveRatio) of
 		true ->
 			error_logger:warning_msg("~p: Reloading children from supervisor ~p.\n", [?MODULE, Supervisor]),
-			add_missing_pids(PidTable, Supervisor),
-			case table_size(PidTable) of
-				0 -> 
-					error_logger:errror_msg("~p: Supervisor ~p has no children. Giving up.\n", [?MODULE, Supervisor]),
-					exit({supervisor_has_no_children});
-				_ -> ignore
-			end;
-		false -> ignore
+			add_missing_pids(PidTable, Supervisor);
+		false ->
+			ignore
 	end,
 	% Pick a valid LastPid, the recent one might be the one which just died.
 	LastPidSave = case LastPid of
@@ -76,6 +71,14 @@ handle_info(_Info, State) -> {noreply, State}.
 terminate(_Reason, _State) -> ok.
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
+	
+check_zero_pids(PidTable, Supervisor) ->
+	case table_size(PidTable) of
+		0 -> 
+			error_logger:error_msg("~p: Supervisor ~p has no children. Giving up.\n", [?MODULE, Supervisor]),
+			exit({error, supervisor_has_no_children});
+		_ -> ignore
+	end.
 
 too_few_pids(PidTable, PidsCountOriginal, MinAliveRatio) ->
 	table_size(PidTable) / PidsCountOriginal < MinAliveRatio.
@@ -85,12 +88,13 @@ add_missing_pids(Table, Supervisor) ->
 	PidsNew = lists:filter(fun(E) -> ets:lookup(Table, E) =:= [] end, Pids),
 	error_logger:info_msg("~p: Found ~p new processes of ~p total.\n", [?MODULE, length(PidsNew), length(Pids)]),
 	PidsWithRefs = [{Pid, {monitor(process, Pid)}}|| Pid <- PidsNew],
-	ets:insert(Table, PidsWithRefs).
+	ets:insert(Table, PidsWithRefs),
+	check_zero_pids(Table, Supervisor).
 
 child_pids(Supervisor) ->
 	case whereis(Supervisor) of
 		undefined ->
-			error_logger:errror_msg("~p Supervisor ~p disappeared. Giving up.\n", [?MODULE, Supervisor]),
+			error_logger:error_msg("~p Supervisor ~p disappeared. Giving up.\n", [?MODULE, Supervisor]),
 			exit({supervisor_disappeared});
 		_ ->
 				[ Pid || {_, Pid, _, _} <- supervisor:which_children(Supervisor)]
