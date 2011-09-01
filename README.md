@@ -41,3 +41,12 @@ The default is 0.8 (80 %).
 ```
 ballermann:balance(sasl_sup, sasl_pool2, 0.9).
 ```
+
+Tests
+--------
+
+to test ballermann, run 
+
+```rebar eunit```
+
+Please note that tests are only included when the -DBALLERMANNTEST flag is specified for compilation.

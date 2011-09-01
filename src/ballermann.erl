@@ -1,6 +1,6 @@
 -module (ballermann).
 
--ifdef(TEST).
+-ifdef(BALLERMANNTEST).
 	-include_lib("eunit/include/eunit.hrl").
 	-define(supervisor_which_children(Supervisor), which_children_mock()).
 	-define(whereis(Supervisor), whereis_mock()).
@@ -107,7 +107,7 @@ add_missing_pids(Table, Supervisor) ->
 child_pids(Supervisor) ->
 	case ?whereis(Supervisor) of
 		undefined ->
-			error_logger:error_msg("~p Supervisor ~p disappeared. Giving up.\n", [?MODULE, Supervisor]),
+			error_logger:error_msg("~p Supervisor ~p not running. Giving up.\n", [?MODULE, Supervisor]),
 			exit({error, supervisor_not_running});
 		_ ->
 				[ Pid || {_, Pid, _, _} <- ?supervisor_which_children(Supervisor)]
@@ -119,7 +119,7 @@ table_size(Table) ->
 		
 % tests ###############################
 
--ifdef(TEST).
+-ifdef(BALLERMANNTEST).
 
 % this is called instead of supervisor:which_children/1 in tests
 which_children_mock() ->
@@ -158,7 +158,7 @@ balance_test() ->
 	?assertEqual(1, Pid2),
 	{reply, Pid3, State3} = handle_call({pid}, x, State2),
 	?assertEqual(3, Pid3),
-	{reply, Pid4, State4} = handle_call({pid}, x, State3),
+	{reply, Pid4, _State4} = handle_call({pid}, x, State3),
 	?assertEqual(2, Pid4),
 	ets:delete(supervisor_pid_table).
 
@@ -231,7 +231,7 @@ exit_test() ->
 	{noreply, StateDown2} = handle_info({'DOWN', x, x, 3, x}, State3),
 	{reply, Pid4, State4} = handle_call({pid}, x, StateDown2),
 	?assertEqual(1, Pid4),
-	{reply, Pid5, State5} = handle_call({pid}, x, State4),
+	{reply, Pid5, _State5} = handle_call({pid}, x, State4),
 	?assertEqual(1, Pid5),
 	ets:delete(supervisor_pid_table).
 
@@ -264,7 +264,7 @@ reload_test() ->
 	?assertEqual(15, Pid8),	
 	{reply, Pid9, State9} = handle_call({pid}, x, State8),
 	?assertEqual(2, Pid9),	
-	{reply, Pid10, State10} = handle_call({pid}, x, State9),
+	{reply, Pid10, _State10} = handle_call({pid}, x, State9),
 	?assertEqual(13, Pid10),	
 	ets:delete(supervisor_pid_table).	 	
 
