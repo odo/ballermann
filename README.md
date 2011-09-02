@@ -45,8 +45,12 @@ ballermann:balance(sasl_sup, sasl_pool2, 0.9).
 Tests
 --------
 
-to test ballermann, run 
+to test ballermann, uncomment the line
+
+```{eunit_compile_opts, [{d, 'BALLERMANNTEST'}]}.```
+
+in rebar.config and run
 
 ```rebar eunit```
 
-Please note that tests are only included when the -DBALLERMANNTEST flag is specified for compilation.
+This is to prevent ballermann from been compiled in test mode when used as a dependency (which is the most common situation).
