@@ -16,7 +16,7 @@
 -behaviour (gen_server).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export ([balance/2, balance/3, start_link/3, pid/1]).
+-export ([balance/2, balance/3, apply_within/2, apply_within/3, start_link/3, pid/1]).
 -type sup_ref()  :: {atom(), atom()}.
 
 -record(state, {
@@ -39,6 +39,12 @@ balance(Supervisor, BalancerName, MinAliveRatio) ->
 pid(ServerName) ->
 	gen_server:call(ServerName, {pid}).
 
+apply_within(ServerName, {Module, Function, Args}) ->
+	apply_within(ServerName, {Module, Function, Args}, 0).
+
+apply_within(ServerName, {Module, Function, Args}, WaitTime) ->
+	gen_server:call(ServerName, {apply_within, {Module, Function, Args}, WaitTime}).
+
 init({Supervisor, MinAliveRatio}) ->
 	PidTableName = list_to_atom(atom_to_list(Supervisor) ++ "_pid_table"),
 	ets:new(PidTableName, [private, duplicate_bag, named_table]),
@@ -58,7 +64,12 @@ handle_call({pid}, _From, State = #state{last_pid = LastPid, pid_table = PidTabl
 		'$end_of_table' ->
 			ets:first(PidTable)
 	end,
-	{reply, Pid, State#state{last_pid = Pid}}.
+	{reply, Pid, State#state{last_pid = Pid}};
+
+handle_call({apply_within, {Module, Function, Args}, WaitTime}, _From, State) ->
+	timer:sleep(WaitTime),
+	Reply = apply(Module, Function, Args),
+	{reply, Reply, State}.
 
 handle_cast(_Msg, State) -> {noreply, State}.
 
@@ -160,6 +171,16 @@ balance_test() ->
 	?assertEqual(3, Pid3),
 	{reply, Pid4, _State4} = handle_call({pid}, x, State3),
 	?assertEqual(2, Pid4),
+	ets:delete(supervisor_pid_table).
+
+apply_within_test() ->
+	erlang:put(children_mock, [1, 2, 3]),
+	erlang:put(whereis_mock, pid),
+	{ok, StateInit} = init({supervisor, 0.75}),
+	{reply, Reply, StateInit} = handle_call({apply_within, {lists, reverse, [[1, 2]]}, 0}, x, StateInit),
+	?assertEqual([2, 1], Reply),
+	{reply, Reply2, StateInit} = handle_call({apply_within, {lists, reverse, [[2, 1]]}, 100}, x, StateInit),
+	?assertEqual([1, 2], Reply2),
 	ets:delete(supervisor_pid_table).
 
 no_supervisor_init_test() ->

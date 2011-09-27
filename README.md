@@ -42,6 +42,18 @@ The default is 0.8 (80 %).
 ballermann:balance(sasl_sup, sasl_pool2, 0.9).
 ```
 
+Sometimes, when the processes behind ballermann have side effects, you want ballermann to stop handing out pids, wait for moment and perform some cleanup. This can be achieved using apply_within(ServerName, {Module, Function, Args, WaitTime}):
+
+```
+1> application:start(sasl).
+ok
+2> ballermann:balance(sasl_sup, sasl_pool).
+{ok,<0.43.0>}
+3>  ballermann:apply_within(sasl_pool, {lists, reverse, [[1, 2]]}, 1000).
+[2,1]
+```
+
+
 Tests
 --------
 
