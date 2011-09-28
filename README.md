@@ -42,16 +42,25 @@ The default is 0.8 (80 %).
 ballermann:balance(sasl_sup, sasl_pool2, 0.9).
 ```
 
-Sometimes, when the processes behind ballermann have side effects, you want ballermann to stop handing out pids and perform some cleanup. This can be achieved using apply_within(ServerName, {Module, Function, Args, WaitTimeOrFun}). When you provide a numeric value, ballermann will wait for that number of milliseconds. If you provide a fun with arity 1, ballermann will call that function with each pid in the pool:
+Sometimes, when the processes behind ballermann have side effects, you want ballermann to stop handing out pids and perform some cleanup. This can be achieved using apply_within(ServerName, {Module, Function, Args, WaitTimeOrFun}). When you provide a numeric value, ballermann will wait for that number of milliseconds. If you provide a fun with arity 1, ballermann will call that function with each pid in the pool as an argument:
 
 ```
 1> application:start(sasl).
 ok
 2> ballermann:balance(sasl_sup, sasl_pool).
 {ok,<0.43.0>}
-3>  ballermann:apply_within(sasl_pool, {lists, reverse, [[1, 2]]}, 1000).
+3> ballermann:apply_within(sasl_pool, {lists, reverse, [[1, 2]]}, 1000).
+[2,1]
+4> ballermann:apply_within(sasl_pool, {lists, reverse, [[1, 2]]}, fun(P) -> P end).
 [2,1]
 ```
+
+If you have a pool of gen_servers running and you want to make sure that they are all idle before you do your maintenance, the call would more likely look like this:
+
+```
+ballermann:apply_within(server_pool, {my_cleanup_module, cleanup, [now]}, fun(Pid) -> gen_server:call(Pid, {ping}) end).
+```
+ 
 
 
 Tests
