@@ -42,8 +42,8 @@ pid(ServerName) ->
 apply_within(ServerName, {Module, Function, Args}) ->
 	apply_within(ServerName, {Module, Function, Args}, 0).
 
-apply_within(ServerName, {Module, Function, Args}, WaitTime) ->
-	gen_server:call(ServerName, {apply_within, {Module, Function, Args}, WaitTime}).
+apply_within(ServerName, {Module, Function, Args}, WaitTimeOrFun) ->
+	gen_server:call(ServerName, {apply_within, {Module, Function, Args}, WaitTimeOrFun}).
 
 init({Supervisor, MinAliveRatio}) ->
 	PidTableName = list_to_atom(atom_to_list(Supervisor) ++ "_pid_table"),
@@ -66,8 +66,13 @@ handle_call({pid}, _From, State = #state{last_pid = LastPid, pid_table = PidTabl
 	end,
 	{reply, Pid, State#state{last_pid = Pid}};
 
-handle_call({apply_within, {Module, Function, Args}, WaitTime}, _From, State) ->
-	timer:sleep(WaitTime),
+handle_call({apply_within, {Module, Function, Args}, WaitTimeOrFun}, _From, State = #state{supervisor = Supervisor}) ->
+	case WaitTimeOrFun of
+		WaitTime when is_float(WaitTime) orelse is_integer(WaitTime) ->
+			timer:sleep(WaitTime);
+		Fun when is_function(Fun) ->
+			[Fun(Pid) || Pid <- child_pids(Supervisor)]
+	end,
 	Reply = apply(Module, Function, Args),
 	{reply, Reply, State}.
 
@@ -181,6 +186,8 @@ apply_within_test() ->
 	?assertEqual([2, 1], Reply),
 	{reply, Reply2, StateInit} = handle_call({apply_within, {lists, reverse, [[2, 1]]}, 100}, x, StateInit),
 	?assertEqual([1, 2], Reply2),
+	{reply, Reply3, StateInit} = handle_call({apply_within, {lists, reverse, [[2, 3]]}, fun(P) -> P end}, x, StateInit),
+	?assertEqual([3, 2], Reply3),
 	ets:delete(supervisor_pid_table).
 
 no_supervisor_init_test() ->

@@ -42,7 +42,7 @@ The default is 0.8 (80 %).
 ballermann:balance(sasl_sup, sasl_pool2, 0.9).
 ```
 
-Sometimes, when the processes behind ballermann have side effects, you want ballermann to stop handing out pids, wait for moment and perform some cleanup. This can be achieved using apply_within(ServerName, {Module, Function, Args, WaitTime}):
+Sometimes, when the processes behind ballermann have side effects, you want ballermann to stop handing out pids and perform some cleanup. This can be achieved using apply_within(ServerName, {Module, Function, Args, WaitTimeOrFun}). When you provide a numeric value, ballermann will wait for that number of milliseconds. If you provide a fun with arity 1, ballermann will call that function with each pid in the pool:
 
 ```
 1> application:start(sasl).
