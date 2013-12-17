@@ -16,7 +16,7 @@
 -behaviour (gen_server).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export ([balance/2, balance/3, apply_within/2, apply_within/3, start_link/3, pid/1]).
+-export ([balance/2, balance/3, apply_within/2, apply_within/3, start_link/3, pid/1, whereis/1]).
 -type sup_ref()  :: {atom(), atom()}.
 
 -record(state, {
