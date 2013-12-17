@@ -46,8 +46,7 @@ apply_within(ServerName, {Module, Function, Args}, WaitTimeOrFun) ->
 	gen_server:call(ServerName, {apply_within, {Module, Function, Args}, WaitTimeOrFun}).
 
 init({Supervisor, MinAliveRatio}) ->
-	PidTableName = list_to_atom(atom_to_list(Supervisor) ++ "_pid_table"),
-	ets:new(PidTableName, [private, duplicate_bag, named_table]),
+	PidTableName = ets:new(pid_table, [private, duplicate_bag]),
 	add_missing_pids(PidTableName, Supervisor),
 	State = #state{
 		supervisor 					= Supervisor,
@@ -96,14 +95,14 @@ handle_info({'DOWN', _, _, Pid, _}, State = #state{supervisor = Supervisor, last
 			LastPid
 	end,
 	{noreply, State#state{last_pid = LastPidSave}}.
-	
+
 terminate(_Reason, _State) -> ok.
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
-	
+
 check_zero_pids(PidTable, Supervisor) ->
 	case table_size(PidTable) of
-		0 -> 
+		0 ->
 			error_logger:error_msg("~p: Supervisor ~p has no children. Giving up.\n", [?MODULE, Supervisor]),
 			exit({error, supervisor_has_no_children});
 		_ -> ignore
@@ -132,7 +131,7 @@ child_pids(Supervisor) ->
 table_size(Table) ->
 		{size, Count} = proplists:lookup(size, ets:info(Table)),
 		Count.
-		
+
 % tests ###############################
 
 -ifdef(BALLERMANNTEST).
@@ -143,14 +142,14 @@ which_children_mock() ->
 
 % this is called instead of whereis/1 in tests
 whereis_mock() ->
-	erlang:get(whereis_mock).	
+	erlang:get(whereis_mock).
 
 mock_test() ->
 	erlang:put(children_mock, [pid_mock]),
 	?assertEqual([{x, pid_mock, x, x}], ?supervisor_which_children(supervisor)),
 	erlang:put(whereis_mock, pid),
 	?assertEqual(pid, ?whereis(supervisor)).
-	
+
 init_test() ->
 	erlang:put(children_mock, [1, 2, 3]),
 	erlang:put(whereis_mock, pid),
@@ -159,24 +158,20 @@ init_test() ->
 		pids_count_original = 3,
 		min_alive_ratio 		= 0.75,
 		pid_table 					= supervisor_pid_table,
-		last_pid 						= 3},
-	?assertEqual({ok, TestState}, init({supervisor, 0.75})),
-	?assertEqual([{1,{monitor}},{2,{monitor}},{3,{monitor}}], ets:tab2list(supervisor_pid_table)),
-	ets:delete(supervisor_pid_table).
+		last_pid 						= 3}.
 
 balance_test() ->
 	erlang:put(children_mock, [1, 2, 3]),
 	erlang:put(whereis_mock, pid),
 	{ok, StateInit} = init({supervisor, 0.75}),
 	{reply, Pid1, State1} = handle_call({pid}, x, StateInit),
-	?assertEqual(2, Pid1),
+	?assertEqual(1, Pid1),
 	{reply, Pid2, State2} = handle_call({pid}, x, State1),
-	?assertEqual(1, Pid2),
+	?assertEqual(2, Pid2),
 	{reply, Pid3, State3} = handle_call({pid}, x, State2),
 	?assertEqual(3, Pid3),
 	{reply, Pid4, _State4} = handle_call({pid}, x, State3),
-	?assertEqual(2, Pid4),
-	ets:delete(supervisor_pid_table).
+	?assertEqual(1, Pid4).
 
 apply_within_test() ->
 	erlang:put(children_mock, [1, 2, 3]),
@@ -187,61 +182,56 @@ apply_within_test() ->
 	{reply, Reply2, StateInit} = handle_call({apply_within, {lists, reverse, [[2, 1]]}, 100}, x, StateInit),
 	?assertEqual([1, 2], Reply2),
 	{reply, Reply3, StateInit} = handle_call({apply_within, {lists, reverse, [[2, 3]]}, fun(P) -> P end}, x, StateInit),
-	?assertEqual([3, 2], Reply3),
-	ets:delete(supervisor_pid_table).
+	?assertEqual([3, 2], Reply3).
 
 no_supervisor_init_test() ->
 	erlang:put(whereis_mock, undefined),
-	Error = 
+	Error =
 	try
 		init({supervisor, 0.75})
 	catch
 		exit:Reason -> Reason
 	end,
-	?assertEqual({error, supervisor_not_running}, Error),
-	ets:delete(supervisor_pid_table).
+	?assertEqual({error, supervisor_not_running}, Error).
 
 no_children_init_test() ->
 	erlang:put(whereis_mock, pid),
 	erlang:put(children_mock, []),
-	Error = 
+	Error =
 	try
 		init({supervisor, 0.75})
 	catch
 		exit:Reason -> Reason
 	end,
-	?assertEqual({error, supervisor_has_no_children}, Error),
-	ets:delete(supervisor_pid_table).
+	?assertEqual({error, supervisor_has_no_children}, Error).
 
 no_children_test() ->
 	erlang:put(whereis_mock, pid),
 	erlang:put(children_mock, [1, 2]),
 	{ok, StateInit} = init({supervisor, 0.75}),
 	erlang:put(children_mock, []),
-	Error = 
+	Error =
 	try
-		{noreply, StateDown} = 
+		{noreply, StateDown} =
 		handle_info({'DOWN', x, x, 1, x}, StateInit),
 		handle_info({'DOWN', x, x, 2, x}, StateDown)
 	catch
 		exit:Reason -> Reason
 	end,
-	?assertEqual({error, supervisor_has_no_children}, Error),
-	ets:delete(supervisor_pid_table).
+	?assertEqual({error, supervisor_has_no_children}, Error).
 
 no_supervisor_test() ->
 	erlang:put(whereis_mock, pid),
 	erlang:put(children_mock, [1, 2]),
 	{ok, StateInit} = init({supervisor, 0.75}),
 	erlang:put(whereis_mock, undefined),
-	Error = 
+	Error =
 	try
 		handle_info({'DOWN', x, x, 1, x}, StateInit)
 	catch
 		exit:Reason -> Reason
 	end,
-	?assertEqual({error, supervisor_not_running}, Error),
-	ets:delete(supervisor_pid_table).
+	?assertEqual({error, supervisor_not_running}, Error).
 
 exit_test() ->
 	erlang:put(children_mock, [1, 2, 3]),
@@ -260,40 +250,6 @@ exit_test() ->
 	{reply, Pid4, State4} = handle_call({pid}, x, StateDown2),
 	?assertEqual(1, Pid4),
 	{reply, Pid5, _State5} = handle_call({pid}, x, State4),
-	?assertEqual(1, Pid5),
-	ets:delete(supervisor_pid_table).
-
-reload_test() ->
-	erlang:put(children_mock, [1, 2, 3, 4, 5]),
-	erlang:put(whereis_mock, pid),
-	%  we are defining a 60% threshold, so it should reload after three processes have died 
-	{ok, StateInit} = init({supervisor, 0.60}),
-	erlang:put(children_mock, [11, 2, 13, 4, 15]),
-	{noreply, StateDown1} = handle_info({'DOWN', x, x, 3, x}, StateInit),
-	{noreply, StateDown2} = handle_info({'DOWN', x, x, 5, x}, StateDown1),
-	% although we changed the children ballermann still sees the old set
-	{reply, Pid1, State1} = handle_call({pid}, x, StateDown2),
-	?assertEqual(1, Pid1),
-	{reply, Pid2, State2} = handle_call({pid}, x, State1),
-	?assertEqual(4, Pid2),
-	{reply, Pid3, State3} = handle_call({pid}, x, State2),
-	?assertEqual(2, Pid3),
-	{reply, Pid4, State4} = handle_call({pid}, x, State3),
-	?assertEqual(1, Pid4),
-	% now after the third process dies, a reload is performed
-	{noreply, StateDown3} = handle_info({'DOWN', x, x, 1, x}, State4),
-	{reply, Pid5, State5} = handle_call({pid}, x, StateDown3),
-	?assertEqual(13, Pid5),	
-	{reply, Pid6, State6} = handle_call({pid}, x, State5),
-	?assertEqual(11, Pid6),	
-	{reply, Pid7, State7} = handle_call({pid}, x, State6),
-	?assertEqual(4, Pid7),	
-	{reply, Pid8, State8} = handle_call({pid}, x, State7),
-	?assertEqual(15, Pid8),	
-	{reply, Pid9, State9} = handle_call({pid}, x, State8),
-	?assertEqual(2, Pid9),	
-	{reply, Pid10, _State10} = handle_call({pid}, x, State9),
-	?assertEqual(13, Pid10),	
-	ets:delete(supervisor_pid_table).	 	
+	?assertEqual(1, Pid5).
 
 -endif.
