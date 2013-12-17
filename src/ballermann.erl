@@ -8,7 +8,7 @@
 	-define(is_pid(Pid), is_integer(Pid)).
 -else.
 	-define(supervisor_which_children(Supervisor), supervisor:which_children(Supervisor)).
-	-define(whereis(Supervisor), whereis(Supervisor)).
+	-define(whereis(Supervisor), ?MODULE:whereis(Supervisor)).
 	-define(monitor(Type, Pid), monitor(Type, Pid)).
 	-define(is_pid(Pid), is_pid(Pid)).
 -endif.
@@ -127,6 +127,15 @@ child_pids(Supervisor) ->
 		_ ->
 				[ Pid || {_, Pid, _, _} <- ?supervisor_which_children(Supervisor)]
 	end.
+
+whereis(Supervisor) when is_pid(Supervisor) ->
+    case erlang:is_process_alive(Supervisor) of
+        treu  -> Supervisor;
+        false -> undefined
+    end;
+
+whereis(Supervisor) ->
+    ?MODULE:whereis(erlang:whereis(Supervisor)).
 
 table_size(Table) ->
 		{size, Count} = proplists:lookup(size, ets:info(Table)),
