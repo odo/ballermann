@@ -130,7 +130,7 @@ child_pids(Supervisor) ->
 
 whereis(Supervisor) when is_pid(Supervisor) ->
     case erlang:is_process_alive(Supervisor) of
-        treu  -> Supervisor;
+        true  -> Supervisor;
         false -> undefined
     end;
 
