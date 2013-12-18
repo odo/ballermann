@@ -3,6 +3,9 @@ Ballermann
 
 Ballermann (German for "the one who drinks from the spring, gently") is a tool for load balancing between Erlang processes in a round-robin fashion.
 
+Comapred to poolboy (https://github.com/devinus/poolboy) ballermann is much simpler since it has no concept of a lease.
+It's designed for the fast paralellization of equally sized tasks.
+
 Building
 --------
 
@@ -11,6 +14,11 @@ git clone git://github.com/odo/ballermann.git
 cd ballermann
 ./rebar get-deps compile
 ```
+
+Performance
+--------
+
+On modern hardware, ballermann can hand out more than hundred thousand pids per second. So it will add an overhead < 10 microseconds to each call.
 
 Usage
 --------
