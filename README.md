@@ -6,12 +6,10 @@ Ballermann (German for "the one who drinks from the spring, gently") is a tool f
 Building
 --------
 
-get and install rebar: https://github.com/basho/rebar
-
 ```
 git clone git://github.com/odo/ballermann.git
 cd ballermann
-rebar compile
+./rebar get-deps compile
 ```
 
 Usage
@@ -60,18 +58,10 @@ If you have a pool of gen_servers running and you want to make sure that they ar
 ```
 ballermann:apply_within(server_pool, {my_cleanup_module, cleanup, [now]}, fun(Pid) -> gen_server:call(Pid, {ping}) end).
 ```
- 
+
 
 
 Tests
 --------
 
-to test ballermann, uncomment the line
-
-```{eunit_compile_opts, [{d, 'BALLERMANNTEST'}]}.```
-
-in rebar.config and run
-
-```rebar eunit```
-
-This is to prevent ballermann from been compiled in test mode when used as a dependency (which is the most common situation).
+```./rebar eunit skip_deps=true```
