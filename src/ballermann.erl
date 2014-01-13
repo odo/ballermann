@@ -38,14 +38,14 @@ apply_within(ServerName, {Module, Function, Args}, WaitTimeOrFun) ->
     gen_server:call(ServerName, {apply_within, {Module, Function, Args}, WaitTimeOrFun}).
 
 init({Supervisor, MinAliveRatio}) ->
-    PidTableName = ets:new(pid_table, [private, duplicate_bag]),
-    add_missing_pids(PidTableName, Supervisor),
+    PidTable = ets:new(pid_table, [private, duplicate_bag]),
     State = #state{
-        supervisor                  = Supervisor,
-        pids_count_original = table_size(PidTableName),
-        min_alive_ratio         = MinAliveRatio,
-        pid_table                   = PidTableName,
-        last_pid                        = ets:first(PidTableName)},
+        supervisor          = Supervisor,
+        pids_count_original = undefined,
+        min_alive_ratio     = MinAliveRatio,
+        pid_table           = PidTable,
+        last_pid            = undefined},
+    gen_server:cast(self(), add_missing_pids),
     {ok, State}.
 
 handle_call({pid}, _From, State = #state{last_pid = LastPid, pid_table = PidTable}) ->
@@ -67,7 +67,11 @@ handle_call({apply_within, {Module, Function, Args}, WaitTimeOrFun}, _From, Stat
     Reply = apply(Module, Function, Args),
     {reply, Reply, State}.
 
-handle_cast(_Msg, State) -> {noreply, State}.
+handle_cast(add_missing_pids, State = #state{ supervisor = Supervisor, pid_table = PidTable }) ->
+    add_missing_pids(PidTable, Supervisor),
+    FirstPid  = ets:first(PidTable),
+    TableSize = table_size(PidTable),
+    {noreply, State#state{ last_pid = FirstPid, pids_count_original = TableSize }}.
 
 handle_info({'DOWN', _, _, Pid, _}, State = #state{supervisor = Supervisor, last_pid = LastPid, pid_table = PidTable, pids_count_original = PidsCountOriginal, min_alive_ratio = MinAliveRatio}) ->
     error_logger:info_msg("~p: The process ~p (child of ~p) died.\n", [?MODULE, Pid, Supervisor]),
@@ -123,7 +127,7 @@ child_pids(Supervisor) ->
             error_logger:error_msg("~p Supervisor ~p not running. Giving up.\n", [?MODULE, Supervisor]),
             exit({error, supervisor_not_running});
         _ ->
-                [ Pid || {_, Pid, _, _} <- supervisor:which_children(Supervisor)]
+            [ Pid || {_, Pid, _, _} <- supervisor:which_children(Supervisor), is_pid(Pid)]
     end.
 
 alive(undefined) ->
