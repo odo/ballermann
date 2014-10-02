@@ -1,3 +1,5 @@
+For an improved implementation of the same idea, see [revolver](https://github.com/odo/revolver).
+
 Ballermann
 =====
 
